@@ -64,12 +64,18 @@ class Reservoir:
     #     ridge.fit(hidden_states, targets)
     #     self.weights_output = ridge.coef_
 
+    # def update_weights(self):
+    #     ridge = Ridge(alpha=self.regularization, fit_intercept=False, normalize=False, copy_X=True)
+    #     ridge.fit(hidden_states, targets)
+    #     self.weights_output = tc.matmul(tc.inverse(self.A + self.regularization * tc.eye()), self.B)
+    # def update_weights(self):
+    #     self.weights_output =
+
     def train(self, data):
         hidden_states = []
         targets = []
         assert len(data.shape) == 3  # shape: n_sequences, dimensionality, time steps per sequence
         for sequence in data:
-        # for sequence in data[0:4]:
             sequence = sequence.T
             hidden = self.initialize_hidden(sequence)
             for t in range(self.n_steps_prerun, len(sequence) - 1):
@@ -79,11 +85,18 @@ class Reservoir:
                 hidden = self.augment_hidden(hidden)
                 hidden_states.append(hidden)
                 targets.append(target)
+
         hidden_states = np.squeeze(np.array(hidden_states))
         targets = np.squeeze(np.array(targets))
-        ridge = Ridge(alpha=self.regularization, fit_intercept=False, normalize=False, copy_X=True)
-        ridge.fit(hidden_states, targets)
-        self.weights_output = ridge.coef_
+        X = hidden_states
+        Y = targets
+        self.A = X.T @ X
+        self.B = X.T @ Y
+        self.weights_output = (np.linalg.inv(self.A + self.regularization * np.eye(self.reservoir_size)) @ self.B).T
+
+        # 1. manual ridge regression
+        # 2. save A and B
+        # 3. iterative update
 
     def predict(self, sequence, n_steps_prediction):
         hidden = self.initialize_hidden(sequence)
@@ -123,7 +136,7 @@ if __name__ == '__main__':
     # args.input_dim = 3
     args.reservoir_size = 1000
     args.n_steps_prerun = 5
-    args.regularization = 1e-1
+    args.regularization = 1e-6
     env = 0
     test_idx = 0
 
