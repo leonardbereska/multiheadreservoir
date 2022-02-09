@@ -3,8 +3,8 @@ from scipy.integrate import odeint
 from matplotlib import pyplot as plt
 
 
-def normalize(x, axis=0):
-    return (x - np.mean(x, axis)) / np.std(x, axis)
+def normalize(x, axis=(0,)):
+    return (x - np.mean(x, axis=axis)) / np.std(x, axis=axis)
 
 
 def integrate_system(equations, config):
@@ -35,11 +35,14 @@ if __name__ == "__main__":
     for env in envs:
         env_trajectories = []
         for i in range(trajectories_per_environment):
-            initial_state = [0.4, 0.4, 23.6] + [7.9, 9.0, 8.6] * np.random.rand(3,)
+            initial_state = [0.4, 0.4, 23.6] + [7.9, 9.0, 8.6] * np.random.rand(3, )
             config = dict(initial_state=initial_state, sequence_length=200, step_size=0.05)
             env_trajectories.append(get_trajectory_lorenz63(env, config))
         trajectories.append(np.array(env_trajectories))
     trajectories = np.array(trajectories)  # shape (environment, number trajectories, length trajectory, dimensionality)
+    trajectories = normalize(trajectories, axis=(0, 1, 2))  # normalize environments jointly
+
+
     np.save('datasets/lorenz63.npy', trajectories)
 
     # plt.plot(trajectory[:, 0], trajectory[:, 2])
