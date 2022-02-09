@@ -14,12 +14,16 @@ class Reservoir:
         self.input_dim = args.input_dim
         self.weights_hidden = self.get_sparse_weights()
         self.weights_input = self.get_input_weights()
-        self.weights_output = np.zeros((self.input_dim, self.reservoir_size))
         self.regularization = args.regularization
         self.n_steps_prerun = args.n_steps_prerun
+        self.n_prediction_heads = 10
+        self.heads_deviation = np.zeros(self.n_prediction_heads)
+        self.heads_active = np.ones(self.n_prediction_heads)
 
-        self.A = np.zeros((self.reservoir_size, self.reservoir_size))
-        self.B = np.zeros((self.reservoir_size, self.input_dim))
+        self.weights_output = 0.01 * np.random.rand(self.n_prediction_heads, self.input_dim, self.reservoir_size)
+
+        self.A = np.zeros((self.n_prediction_heads, self.reservoir_size, self.reservoir_size))
+        self.B = np.zeros((self.n_prediction_heads, self.reservoir_size, self.input_dim))
 
     def get_sparse_weights(self):
         weights = sparse.random(self.reservoir_size, self.reservoir_size, density=self.sparsity)
@@ -46,17 +50,27 @@ class Reservoir:
         h_aug[::2] = pow(h_aug[::2], 2.0)
         return h_aug
 
-    def update_AB(self, new_X, new_Y):
+    def activate_heads(self, hidden_states, targets):
+        squared_deviation = np.power(np.einsum('hdm,nm->hnd', self.weights_output, hidden_states) - targets, 2)
+        self.heads_deviation = np.mean(squared_deviation, axis=(1, 2))  # average over n samples and all dimensions
+        mask = np.zeros(self.n_prediction_heads)
+        idx = np.argsort(self.heads_deviation)[:3]
+        mask[idx] = 1
+        self.heads_active = mask
+        print(self.heads_active)
+
+    def update_AB(self, X, Y):
         # Federated Reservoir Computing - Bacciu et al. 2021
-        self.A = self.A + new_X.T @ new_X
-        self.B = self.B + new_X.T @ new_Y
+        self.A = self.A + np.einsum('a,ij->aij', self.heads_active, X.T @ X)
+        self.B = self.B + np.einsum('a,ij->aij', self.heads_active, X.T @ Y)
 
     def update_weights(self):
-        self.weights_output = (np.linalg.inv(self.A + self.regularization * np.eye(self.reservoir_size)) @ self.B).T
+        for head, (A, B) in enumerate(zip(self.A, self.B)):
+            self.weights_output[head] = (np.linalg.inv(A + self.regularization * np.eye(self.reservoir_size)) @ B).T
 
     def train(self, data):
         assert len(data.shape) == 3  # shape: sequences, time steps, dimensions
-        for sequence in data:
+        for idx, sequence in enumerate(data):
             hidden = self.initialize_hidden(sequence)
             hidden_states = []
             targets = []
@@ -70,6 +84,15 @@ class Reservoir:
 
             hidden_states = np.squeeze(np.array(hidden_states))
             targets = np.squeeze(np.array(targets))
+
+            if idx == 0:
+                self.heads_active = np.ones(self.n_prediction_heads)
+            else:
+                self.activate_heads(hidden_states, targets)
+            if idx == 10:
+                print("10")
+            if idx == 20:
+                print("20")
             self.update_AB(hidden_states, targets)
             self.update_weights()
 
@@ -104,7 +127,7 @@ if __name__ == '__main__':
     assert len(data.shape) == 4  # environments, sequences, time steps, dimensions
     assert args.input_dim == data.shape[-1]
     print(data.shape)
-    data = data[2:4, :]
+    data = data[0:3, :]
     print(data.shape)
     data = np.concatenate(data, axis=0)  # concatenate all environments
     print(data.shape)
