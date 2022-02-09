@@ -19,6 +19,9 @@ class Reservoir:
         self.regularization = args.regularization
         self.n_steps_prerun = args.n_steps_prerun
 
+        self.A = np.zeros((self.reservoir_size, self.reservoir_size))
+        self.B = np.zeros((self.reservoir_size, self.input_dim))
+
     def get_sparse_weights(self):
         weights = sparse.random(self.reservoir_size, self.reservoir_size, density=self.sparsity)
         eigenvalues, _ = splinalg.eigs(weights)
@@ -68,16 +71,20 @@ class Reservoir:
     #     ridge = Ridge(alpha=self.regularization, fit_intercept=False, normalize=False, copy_X=True)
     #     ridge.fit(hidden_states, targets)
     #     self.weights_output = tc.matmul(tc.inverse(self.A + self.regularization * tc.eye()), self.B)
-    # def update_weights(self):
-    #     self.weights_output =
+    def update_AB(self, new_X, new_Y):
+        self.A = self.A + new_X.T @ new_X
+        self.B = self.B + new_X.T @ new_Y
+
+    def update_weights(self):
+        self.weights_output = (np.linalg.inv(self.A + self.regularization * np.eye(self.reservoir_size)) @ self.B).T
 
     def train(self, data):
-        hidden_states = []
-        targets = []
         assert len(data.shape) == 3  # shape: n_sequences, dimensionality, time steps per sequence
         for sequence in data:
             sequence = sequence.T
             hidden = self.initialize_hidden(sequence)
+            hidden_states = []
+            targets = []
             for t in range(self.n_steps_prerun, len(sequence) - 1):
                 input = np.reshape(sequence[t], (-1, 1))
                 target = np.reshape(sequence[t + 1], (-1, 1))
@@ -86,17 +93,10 @@ class Reservoir:
                 hidden_states.append(hidden)
                 targets.append(target)
 
-        hidden_states = np.squeeze(np.array(hidden_states))
-        targets = np.squeeze(np.array(targets))
-        X = hidden_states
-        Y = targets
-        self.A = X.T @ X
-        self.B = X.T @ Y
-        self.weights_output = (np.linalg.inv(self.A + self.regularization * np.eye(self.reservoir_size)) @ self.B).T
-
-        # 1. manual ridge regression
-        # 2. save A and B
-        # 3. iterative update
+            hidden_states = np.squeeze(np.array(hidden_states))
+            targets = np.squeeze(np.array(targets))
+            self.update_AB(hidden_states, targets)
+            self.update_weights()
 
     def predict(self, sequence, n_steps_prediction):
         hidden = self.initialize_hidden(sequence)
@@ -128,6 +128,12 @@ def plot_2d(states):
     plt.plot(states[:, 0], states[:, 1])
 
 
+def plot_data(data):
+    data = data.swapaxes(1, 2)
+    data = data.reshape(2000, 2)
+    plt.plot(data[:, 0], data[:, 1])
+
+
 if __name__ == '__main__':
     args = argparse.Namespace()
     args.radius = 0.6
@@ -137,20 +143,23 @@ if __name__ == '__main__':
     args.reservoir_size = 1000
     args.n_steps_prerun = 5
     args.regularization = 1e-6
-    env = 0
+    env = 1
     test_idx = 0
 
     res = Reservoir(args)
-    data = tc.load('datasets/lv.pt')
-    data = data.numpy()
-    data = data[:, env]
+
+    data = np.load('datasets/lorenz63.npy')
+    print(data.shape)
+    data = data[env]
     # data = np.load('datasets/lorenz_2000.npy')
     # data = data.reshape(200, 10, 3)
     # data = data.swapaxes(1, 2)
+    plot_data(data)
     print(data.shape)
     res.train(data)
     sequence = data[test_idx].T
-    predictions = res.predict(sequence, n_steps_prediction=1000)
-    plot_2d(predictions)
+    # predictions = res.predict(sequence, n_steps_prediction=1000)
+    plot_2d(sequence)
+    # plot_2d(predictions)
     # plot_3d(predictions)
     plt.show()
