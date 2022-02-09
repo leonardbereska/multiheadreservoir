@@ -79,9 +79,8 @@ class Reservoir:
         self.weights_output = (np.linalg.inv(self.A + self.regularization * np.eye(self.reservoir_size)) @ self.B).T
 
     def train(self, data):
-        assert len(data.shape) == 3  # shape: n_sequences, dimensionality, time steps per sequence
+        assert len(data.shape) == 3  # shape: sequences, time steps, dimensions
         for sequence in data:
-            sequence = sequence.T
             hidden = self.initialize_hidden(sequence)
             hidden_states = []
             targets = []
@@ -112,34 +111,11 @@ class Reservoir:
         return output
 
 
-def plot_3d(states):
-    assert len(states.shape) == 2
-    assert states.shape[1] == 3
-    fig = plt.figure()
-    ax = fig.gca(projection="3d")
-    ax.plot(states[:, 0], states[:, 1], states[:, 2])
-    plt.draw()
-
-
-def plot_2d(states):
-    assert len(states.shape) == 2
-    assert states.shape[1] == 2
-    plt.figure()
-    plt.plot(states[:, 0], states[:, 1])
-
-
-def plot_data(data):
-    data = data.swapaxes(1, 2)
-    data = data.reshape(2000, 2)
-    plt.plot(data[:, 0], data[:, 1])
-
-
 if __name__ == '__main__':
     args = argparse.Namespace()
     args.radius = 0.6
     args.sparsity = 0.01
-    args.input_dim = 2
-    # args.input_dim = 3
+    args.input_dim = 3
     args.reservoir_size = 1000
     args.n_steps_prerun = 5
     args.regularization = 1e-6
@@ -149,17 +125,23 @@ if __name__ == '__main__':
     res = Reservoir(args)
 
     data = np.load('datasets/lorenz63.npy')
+    assert len(data.shape) == 4  # environments, sequences, time steps, dimensions
+    assert args.input_dim == data.shape[-1]
     print(data.shape)
-    data = data[env]
-    # data = np.load('datasets/lorenz_2000.npy')
-    # data = data.reshape(200, 10, 3)
-    # data = data.swapaxes(1, 2)
-    plot_data(data)
+    # data = data[:2, :]
+    data = data[2:4, :]
+    print(data.shape)
+    data = np.concatenate(data, axis=0)  # concatenate all environments
     print(data.shape)
     res.train(data)
-    sequence = data[test_idx].T
-    # predictions = res.predict(sequence, n_steps_prediction=1000)
-    plot_2d(sequence)
-    # plot_2d(predictions)
-    # plot_3d(predictions)
+    sequence = data[0]
+
+    predictions = res.predict(sequence, n_steps_prediction=100)
+
+    plt.plot(sequence[:, 0], sequence[:, 2], label="sequence")
+    sequence = data[10]
+    plt.plot(sequence[:, 0], sequence[:, 2], label="sequence")
+    plt.plot(predictions[:, 0], predictions[:, 2], label="predictions")
+    plt.legend()
     plt.show()
+
