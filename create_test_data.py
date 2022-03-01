@@ -7,51 +7,133 @@ def normalize(x, axis=(0,)):
     return (x - np.mean(x, axis=axis)) / np.std(x, axis=axis)
 
 
-def integrate_system(equations, config):
-    t = np.arange(0.0, config['sequence_length'] * config['step_size'] + 10, config['step_size'])
-    x = odeint(equations, config['initial_state'], t)
-    x = x[int(10 / config['step_size']):]
-    # x = normalize(x)
-    return x
+class DynamicalSystem:
+    def __init__(self):
+        self.save_directory = 'datasets'
+        self.transient_cutoff = 100
+
+        self.sequences_per_environment = 10
+        self.sequence_length = 200
+        self.step_size = 0.05
+
+        self.save_name = ''
+        self.environments = list()
+        self.n_dimensions = NotImplementedError
+
+    def get_equations(self, par):
+        return NotImplementedError
+
+    def get_initial_state(self):
+        return np.random.rand(self.n_dimensions)
+
+    def integrate_system(self, par):
+        equations = self.get_equations(par)
+        t = np.arange(0.0, self.sequence_length * self.step_size + self.transient_cutoff, self.step_size)
+        x = odeint(equations, self.get_initial_state(), t)
+        x = x[int(self.transient_cutoff / self.step_size):]
+        return x
+
+    def get_data(self):
+        """
+        :return: data with shape (number environments, number trajectories per environment, time steps, dimensions)
+        """
+        sequences = []
+        for environment in self.environments:
+            env_trajectories = [self.integrate_system(environment) for i in range(self.sequences_per_environment)]
+            sequences.append(np.array(env_trajectories))
+        sequences = np.array(sequences)  # shape (environment, number trajectories, length trajectory, dimension)
+        sequences = normalize(sequences, axis=(0, 1, 2))  # normalize environments jointly
+        return sequences
+
+    def save_data(self):
+        data = self.get_data()
+        self.plot(data)
+        np.save('{}/{}.npy'.format(self.save_directory, self.save_name), data)
+
+    def plot_trajectory(self, trajectory):
+        plt.plot(trajectory[:, 0], trajectory[:, -1])
+
+    def plot(self, data=None):
+        if data is None:
+            data = self.get_data()
+        for i, env in enumerate(data):
+            trajectory = env[0]
+            dict_ = self.environments[i]
+            greek_letters = ('mu', 'sigma', 'rho', 'beta')
+            key_repr = [u'$\{}$'.format(key) if key in greek_letters else key for key in dict_.keys()]
+            print_queue = ['{}={}'.format(key_repr[i], dict_[key]) for i, key in enumerate(dict_.keys())]
+            print_out = ', '.join(print_queue)
+            plt.title('{} ({})'.format(self.save_name, print_out))
+            self.plot_trajectory(trajectory)
+            plt.show()
 
 
-def get_trajectory_lorenz63(par, config):
-    def lorenz_equations(state, t):
-        x, y, z = state
-        return par['sigma'] * (y - x), x * (par['rho'] - z) - y, x * y - par['beta'] * z
+class Lorenz63(DynamicalSystem):
+    def __init__(self):
+        super(Lorenz63, self).__init__()
+        self.save_name = 'Lorenz-63'
+        self.n_dimensions = 3
+        self.environments = [dict(rho=28., sigma=10., beta=2.66),  # "normal"
+                             dict(rho=36., sigma=8.5, beta=3.5),  # chaos
+                             dict(rho=35., sigma=21., beta=1.),  # limit cycle
+                             dict(rho=60., sigma=20., beta=8.)  # fixed points
+                             ]
 
-    return integrate_system(lorenz_equations, config)
+    def get_equations(self, par):
+        def lorenz63(x, t):
+            return par['sigma'] * (x[1] - x[0]), x[0] * (par['rho'] - x[2]) - x[1], x[0] * x[1] - par['beta'] * x[2]
+
+        return lorenz63
+
+
+class Lorenz96(DynamicalSystem):
+    def __init__(self, n_dimensions):
+        super(Lorenz96, self).__init__()
+        self.save_name = 'Lorenz-96'
+        self.n_dimensions = n_dimensions
+        self.environments = [dict(F=5),
+                             dict(F=10),
+                             dict(F=20),
+                             dict(F=50),
+                             ]
+
+    def plot_trajectory(self, trajectory):
+        plt.imshow(trajectory, aspect='auto')
+        plt.ylabel('time steps')
+        plt.gca().invert_yaxis()
+        plt.xlabel('dimensions')
+
+    def get_equations(self, par):
+        def lorenz96(x, t):
+            x_next = np.zeros(self.n_dimensions)
+            for i in range(self.n_dimensions):
+                x_next[i] = (x[(i + 1) % self.n_dimensions] - x[i - 2]) * x[i - 1] - x[i] + par['F']
+            return x_next
+
+        return lorenz96
+
+
+class VanderPol(DynamicalSystem):
+    def __init__(self):
+        super(VanderPol, self).__init__()
+        self.save_name = 'Van-der-Pol'
+        self.n_dimensions = 2
+        self.environments = [dict(mu=0.5),
+                             dict(mu=1.),
+                             dict(mu=2.),
+                             dict(mu=4.),
+                             ]
+
+    def get_equations(self, par):
+        def vanderpol(x, t):
+            (x, y) = x
+            return [y, (par['mu'] * (1. - x * x) * y - x)]
+
+        return vanderpol
 
 
 if __name__ == "__main__":
     np.random.seed(0)
-    envs = [dict(rho=28., sigma=10., beta=8. / 3),  # "normal"
-            dict(rho=36., sigma=8.5, beta=3.5),  # chaos
-            dict(rho=35., sigma=21., beta=1.),  # limit cycle
-            dict(rho=37.5, sigma=34., beta=4.)  # fixed points
-            ]
-    trajectories_per_environment = 10
-    trajectories = []
-    for env in envs:
-        env_trajectories = []
-        for i in range(trajectories_per_environment):
-            initial_state = [0.4, 0.4, 23.6] + [7.9, 9.0, 8.6] * np.random.rand(3, )
-            config = dict(initial_state=initial_state, sequence_length=200, step_size=0.05)
-            env_trajectories.append(get_trajectory_lorenz63(env, config))
-        trajectories.append(np.array(env_trajectories))
-    trajectories = np.array(trajectories)  # shape (environment, number trajectories, length trajectory, dimensionality)
-    trajectories = normalize(trajectories, axis=(0, 1, 2))  # normalize environments jointly
-
-
-    np.save('datasets/lorenz63.npy', trajectories)
-
-    # plt.plot(trajectory[:, 0], trajectory[:, 2])
-    # plt.show()
-    # plt.plot(trajectory)
-    # plt.show()
-
-    # for i, env in enumerate(trajectories):
-    #         plt.plot(env[0, :, 0], env[0, :, 2])
-    # plt.legend(list(range(4)))
-    # plt.title('Multiple environments for Lorenz-63')
-    # plt.show()
+    # Lorenz96(n_dimensions=39).save_data()
+    Lorenz63().save_data()
+    # VanderPol().save_data()

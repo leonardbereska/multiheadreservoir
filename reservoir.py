@@ -16,7 +16,7 @@ class Reservoir:
         self.weights_input = self.get_input_weights()
         self.weights_output = np.zeros((self.input_dim, self.reservoir_size))
         self.regularization = args.regularization
-        self.n_steps_prerun = args.n_steps_prerun
+        self.n_steps_prerun = args.n_steps_init_hidden
 
         self.A = np.zeros((self.reservoir_size, self.reservoir_size))
         self.B = np.zeros((self.reservoir_size, self.input_dim))
