@@ -12,7 +12,7 @@ class DynamicalSystem:
         self.save_directory = 'datasets'
         self.transient_cutoff = 100
 
-        self.sequences_per_environment = 10
+        self.sequences_per_environment = 15
         self.sequence_length = 200
         self.step_size = 0.05
 
@@ -50,22 +50,33 @@ class DynamicalSystem:
         self.plot(data)
         np.save('{}/{}.npy'.format(self.save_directory, self.save_name), data)
 
-    def plot_trajectory(self, trajectory):
-        plt.plot(trajectory[:, 0], trajectory[:, -1])
+    def plot_trajectory(self, trajectory, label=None):
+        if label is None:
+            plt.plot(trajectory[:, 0], trajectory[:, -1])
+        else:
+            plt.plot(trajectory[:, 0], trajectory[:, -1], label=label)
 
     def plot(self, data=None):
         if data is None:
             data = self.get_data()
-        for i, env in enumerate(data):
+        i = len(data)
+        for env in reversed(data):
+            i -= 1
             trajectory = env[0]
             dict_ = self.environments[i]
             greek_letters = ('mu', 'sigma', 'rho', 'beta')
             key_repr = [u'$\{}$'.format(key) if key in greek_letters else key for key in dict_.keys()]
             print_queue = ['{}={}'.format(key_repr[i], dict_[key]) for i, key in enumerate(dict_.keys())]
             print_out = ', '.join(print_queue)
-            plt.title('{} ({})'.format(self.save_name, print_out))
-            self.plot_trajectory(trajectory)
-            plt.show()
+            # plt.title('{} ({})'.format(self.save_name, print_out))
+            plt.title('{}'.format(self.save_name))
+            self.plot_trajectory(trajectory, label=print_out)
+            # plt.show()
+            plt.legend()
+            name = 'plots/{}_{}.pdf'.format(self.save_name, print_out)
+            print(name)
+            plt.savefig(name)
+        plt.close()
 
 
 class Lorenz63(DynamicalSystem):
@@ -87,7 +98,7 @@ class Lorenz63(DynamicalSystem):
 
 
 class Lorenz96(DynamicalSystem):
-    def __init__(self, n_dimensions):
+    def __init__(self, n_dimensions=10):
         super(Lorenz96, self).__init__()
         self.save_name = 'Lorenz-96'
         self.n_dimensions = n_dimensions
@@ -97,7 +108,7 @@ class Lorenz96(DynamicalSystem):
                              dict(F=50),
                              ]
 
-    def plot_trajectory(self, trajectory):
+    def plot_trajectory(self, trajectory, **kwargs):
         plt.imshow(trajectory, aspect='auto')
         plt.ylabel('time steps')
         plt.gca().invert_yaxis()
@@ -134,6 +145,6 @@ class VanderPol(DynamicalSystem):
 
 if __name__ == "__main__":
     np.random.seed(0)
-    # Lorenz96(n_dimensions=39).save_data()
     Lorenz63().save_data()
-    # VanderPol().save_data()
+    VanderPol().save_data()
+    Lorenz96().save_data()
