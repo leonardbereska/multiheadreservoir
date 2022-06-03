@@ -1,5 +1,4 @@
 import argparse
-from tqdm import tqdm
 import torch as tc
 import numpy as np
 import torch.nn as nn
@@ -10,7 +9,6 @@ from torch.utils.data import DataLoader, Dataset
 
 from utils import load_data
 import random
-from tqdm.auto import trange, tqdm
 
 
 def plot(model, sequences):

@@ -561,8 +561,7 @@ def determine_active_heads():
         n_active_heads_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         validation_measures = []
         validation_measure_errors = []
-        for n_active_heads in n_active_heads_list:
-            # args.n_best_predictions = n_active_heads
+        for _ in n_active_heads_list:
             env_idx = 0  # validate on first environment (realistic assumption)
             validation_slice = slice(args.n_trajs_train + args.n_trajs_test, args.n_trajs)
             data = utils.load_data(args.data_path, envs=(env_idx,), trajs=validation_slice)
@@ -572,10 +571,8 @@ def determine_active_heads():
             sems = [sem(mse_n, axis=None) for mse_n in all_mses]
             validation_measures.append(means[0])
             validation_measure_errors.append(sems[0])
-            # print('{:.1e}\t{:.3e}'.format(regularization, means[0]))  # MSE-1 as validation measure
         print('Best regularization on {}: {}'.format(dataset, n_active_heads_list[np.argmin(validation_measures)]))
         plt.errorbar(n_active_heads_list, validation_measures, yerr=validation_measure_errors)
-        # plt.xscale('log')
         plt.yscale('log')
         plt.ylabel('1-step ahead prediction MSE')
         plt.xlabel('regularization parameter')
@@ -590,12 +587,4 @@ if __name__ == '__main__':
     # estimate_accuracy()
     # determine_memory()
     # determine_active_heads()
-
-
     run_experiments()
-
-    # datasets = ['Van-der-Pol', 'Lorenz-63', 'Lorenz-96']
-    # for dataset in datasets:
-    # dataset = datasets[1]
-    # data_path = 'datasets/{}.npy'.format(dataset)
-    # run_ours(data_path)

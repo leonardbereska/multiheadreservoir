@@ -43,8 +43,6 @@ class EWC(object):
             input = sequence[:, :-1]
             self.model.zero_grad()
             output = self.model(input)
-            # label = output.max(1)[1].view(-1)
-            # loss = F.nll_loss(F.log_softmax(output, dim=1), label)
             loss = criterion(output, target)
             loss.backward()
 
@@ -127,7 +125,6 @@ def ewc_process(args):
         else:
             return get_mse_or_ewc(model, env_idx)
 
-
     models = []
     for _ in range(args.n_exps):
         for env_idx in range(len(envs)):
@@ -162,7 +159,3 @@ if __name__ == "__main__":
     print('Continual LSTM+EWC')
     args.use_ewc = True
     process_datasets(ewc_process, args)
-
-    # print('Continual LSTM')
-    # args.use_ewc = False
-    # process_datasets(ewc_process, args)

@@ -1,8 +1,5 @@
 import argparse
-from tqdm import tqdm
 import torch as tc
-import torch.nn as nn
-import torch.optim as optim
 from scipy.stats import sem
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, Dataset
@@ -12,6 +9,18 @@ import random
 import numpy as np
 
 import pysindy as ps
+
+
+def predict_n_steps(model, inputs, n_steps):
+    n_steps_init = 10
+    inputs = inputs[:, :n_steps_init]
+    predictions = []
+    for _ in range(n_steps):
+        predictions_next_step = model.forward(inputs)
+        next_step = predictions_next_step[0, -1].detach()
+        predictions.append(next_step)
+        inputs = tc.cat((inputs[0, 1:], next_step.unsqueeze(0))).unsqueeze(0)
+    return tc.stack(predictions).unsqueeze(0)
 
 
 def plot(model, sequences):
@@ -25,18 +34,6 @@ def plot(model, sequences):
     plt.legend()
     plt.show()
     plt.close()
-
-
-def predict_n_steps(model, inputs, n_steps):
-    n_steps_init = 10
-    inputs = inputs[:, :n_steps_init]
-    predictions = []
-    for _ in range(n_steps):
-        predictions_next_step = model.forward(inputs)
-        next_step = predictions_next_step[0, -1].detach()
-        predictions.append(next_step)
-        inputs = tc.cat((inputs[0, 1:], next_step.unsqueeze(0))).unsqueeze(0)
-    return tc.stack(predictions).unsqueeze(0)
 
 
 def plot_sequence(data, label=None):
@@ -62,7 +59,6 @@ class Sequence(Dataset):
         return [sequence for sequence in self.data[sample_idx]]
 
 
-
 def get_loader(args, envs=(0, 1, 2, 3), shuffle=False, test=False):
     if test:
         trajs = slice(7, 10)
@@ -78,13 +74,6 @@ def train_individually(args):
         train_loader = get_loader(args, envs=(env_idx,), shuffle=False)
         models = train(args, train_loader)
         evaluate(args, models, envs=(env_idx,))
-
-#
-# def train_continually(args):
-#     print('Continual LSTM')
-#     train_loader = get_loader(args, shuffle=False)
-#     models = train(args, train_loader)
-#     evaluate(args, models)
 
 
 def train_jointly(args):
@@ -105,11 +94,10 @@ def train(args, train_loader):
 
 def train_model(args, train_loader):
     trainset = list(train_loader)
-    # X = tc.cat(trainset, axis=1).squeeze().numpy()
     X = trainset[0].squeeze().numpy()
 
     model = ps.SINDy()
-    t = np.arange(0, X.shape[0]*0.05, 0.05)
+    t = np.arange(0, X.shape[0] * 0.05, 0.05)
 
     model.fit(X, t=t)
     return model
