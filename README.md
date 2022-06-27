@@ -16,7 +16,7 @@ We show that this multi-head reservoir minimizes interference and catastrophic f
 ## Citing
 If you find this code useful for your research, please consider citing our paper:
 
-> Leonard Bereska and Efstratios Gavves. "Continual Learning of Dynamical Systems with Competitive Multi-Head Reservoirs." CoLLAs, 2022.
+> Leonard Bereska and Efstratios Gavves. "Continual Learning of Dynamical Systems with Competitive Federated Reservoir Computing." CoLLAs, 2022.
 
 
 ## Contact 
