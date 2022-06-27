@@ -1,4 +1,4 @@
-# Continual Learning of Dynamical Systems with Competitive Multi-Head Reservoirs 
+# Continual Learning of Dynamical Systems with Competitive Federated Reservoir Computing 
 ![method.png](method.png)
 
 This repository contains the code for our paper [Continual Learning of Dynamical Systems with Competitive Multi-Head Reservoirs]() 
