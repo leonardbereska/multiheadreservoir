@@ -7,7 +7,7 @@ This repository contains the code for our paper [Continual Learning of Dynamical
 Machine learning recently proved efficient in learning differential equations and dynamical systems from data. 
 However, the data is commonly assumed to originate from a single never-changing system. 
 In contrast, when modeling real-world dynamical processes, the data distribution often shifts due to changes in the underlying system dynamics. 
-Continual learning of these processes aims to rapidly adapt to abrupt system changes without forgetting previous dynamical regimes. 
+*Continual learning of these processes aims to rapidly adapt to abrupt system changes without forgetting previous dynamical regimes.*
 This work proposes an approach to continual learning based on reservoir computing, a state-of-the-art method for training recurrent neural networks on complex spatiotemporal dynamical systems. 
 Reservoir computing fixes the recurrent network weights - hence these cannot be forgotten - and only updates linear projection *heads* to the output.
 We propose to train multiple competitive prediction heads concurrently. Inspired by neuroscience's predictive coding, only the most predictive heads activate, laterally inhibiting and thus protecting the inactive heads from forgetting induced by interfering parameter updates.
